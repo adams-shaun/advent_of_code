@@ -4,24 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
-	"strings"
+
+	"github.com/adams-shaun/advent_of_code/2023/common"
 )
 
 var (
 	inputFlag string
 )
-
-func readInput(infile string) []string {
-	data, err := os.ReadFile(infile)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	return lines
-}
 
 func getCalibrationValue(line string) int {
 	// Two pointer solution
@@ -69,7 +59,7 @@ func main() {
 	// Read in data set
 	flag.StringVar(&inputFlag, "input", "input", "input data set")
 	flag.Parse()
-	inputs := readInput(inputFlag)
+	inputs := common.ReadInput(inputFlag)
 
 	total := int64(0)
 	for _, line := range inputs {
