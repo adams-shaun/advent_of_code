@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 var (
@@ -21,30 +20,45 @@ func readInput(infile string) []string {
 	}
 
 	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		fmt.Println(line)
-	}
 	return lines
 }
 
 func getCalibrationValue(line string) int {
-	// Thinking here we make a single pass.
-	// Set both front/back tracker vars to first digit we see
-	// Otherwise, just update back on any new digit.
-	// Iterating from both sides could yield some improvement.
-	first := ""
-	last := ""
+	// Two pointer solution
+	// Assumes input is all UTF-8, avoid conversion to runes
+	// Previous 'one pass' solution guaranteed a full pass
+	// This approach could save a bit of time.
+	first := 0
+	last := len(line) - 1
 
-	for _, r := range line {
-		if unicode.IsDigit(r) {
-			if first == "" {
-				first = string(r)
+	var firstByte byte
+	var lastByte byte
+
+	for first <= last {
+		if (firstByte != 0) && (lastByte != 0) {
+			break
+		}
+
+		// look for first
+		if firstByte == 0 {
+			if line[first] >= 48 && line[first] <= 57 {
+				firstByte = line[first]
+			} else {
+				first++
 			}
-			last = string(r)
+		}
+
+		// look for last
+		if lastByte == 0 {
+			if line[last] >= 48 && line[last] <= 57 {
+				lastByte = line[last]
+			} else {
+				last--
+			}
 		}
 	}
 
-	res, err := strconv.Atoi(first + last)
+	res, err := strconv.Atoi(string([]byte{firstByte, lastByte}))
 	if err != nil {
 		log.Fatalf("error converting %s : %v", line, err)
 	}
