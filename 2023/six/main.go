@@ -44,6 +44,23 @@ func parseInput(input []string) ([]int, []int) {
 	return times, distances
 }
 
+func parseInputPt2(input []string) (int, int) {
+	r, _ := regexp.Compile(re_number)
+	time := ""
+	dist := ""
+
+	for {
+		for _, res := range r.FindAllString(input[0], -1) {
+			time = time + res
+		}
+		for _, res := range r.FindAllString(input[1], -1) {
+			dist = dist + res
+		}
+		break
+	}
+	return mustAtoi(time), mustAtoi(dist)
+}
+
 func findLimits(time int, distance int) (int, int) {
 	// distance traveled :
 	// y = m*(t-m)
@@ -83,4 +100,10 @@ func main() {
 	}
 
 	fmt.Printf("Result for infile %s : %d\n", inputFlag, res)
+
+	// pt2
+	t2, d2 := parseInputPt2(inputs)
+	lower, upper := findLimits(t2, d2)
+
+	fmt.Printf("Result for infile Part2 %s : %d\n", inputFlag, (upper - lower + 1))
 }
