@@ -15,6 +15,7 @@ type handStrength int
 
 var (
 	inputFlag string
+	wildFlag  bool
 
 	// type
 	fiveok handStrength = 6
@@ -26,6 +27,7 @@ var (
 	hc     handStrength = 0
 
 	cardStr map[rune]int = map[rune]int{
+		'*': 1,
 		'2': 2,
 		'3': 3,
 		'4': 4,
@@ -54,7 +56,8 @@ func mustAtoi(input string) int {
 	return res
 }
 
-func gradeHand(h *hand) {
+func gradeHand(h *hand, useWild bool) {
+
 	cardCnt := map[string]int{
 		"2": 0,
 		"3": 0,
@@ -71,8 +74,18 @@ func gradeHand(h *hand) {
 		"A": 0,
 	}
 
+	maxK, maxCnt := "", 0
 	for k, _ := range cardCnt {
-		cardCnt[k] = strings.Count(h.holding, k)
+		cnt := strings.Count(h.holding, k)
+		cardCnt[k] = cnt
+		if cnt > maxCnt {
+			maxCnt = cnt
+			maxK = k
+		}
+	}
+	if useWild {
+		wildCnt := strings.Count(h.holding, "*")
+		cardCnt[maxK] += wildCnt
 	}
 
 	numPair, numThree, numFour, numFive := 0, 0, 0, 0
@@ -110,13 +123,16 @@ func gradeHand(h *hand) {
 
 }
 
-func parseInput(input []string) []hand {
+func parseInput(input []string, useWild bool) []hand {
 	hands := make([]hand, 0)
 
 	for _, line := range input {
 		split1 := strings.Split(line, " ")
+		if useWild {
+			split1[0] = strings.ReplaceAll(split1[0], "J", "*")
+		}
 		hand := hand{split1[0], mustAtoi(split1[1]), 0, 0}
-		gradeHand(&hand)
+		gradeHand(&hand, true)
 		hands = append(hands, hand)
 	}
 
@@ -135,9 +151,10 @@ func parseInput(input []string) []hand {
 func main() {
 	// Read in data set
 	flag.StringVar(&inputFlag, "input", "testinput", "input data set")
+	flag.BoolVar(&wildFlag, "wild", false, "used to count joker as wild")
 	flag.Parse()
 	inputs := common.ReadInput(inputFlag)
-	hands := parseInput(inputs)
+	hands := parseInput(inputs, wildFlag)
 	score := int64(0)
 
 	for idx, h := range hands {
