@@ -13,7 +13,7 @@ type handStrength int
 
 var (
 	inputFlag string
-	reNodes   string = "[A-Z]{3}"
+	reNodes   string = "[A-Z0-9]{3}"
 )
 
 type Node struct {
@@ -29,7 +29,28 @@ func (n *Node) moveNext(input rune) *Node {
 	return n.rEdge
 }
 
-func parseInput(input []string) (string, *Node) {
+// greatest common divisor (GCD) via Euclidean algorithm
+func GCD(a, b int) int {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+// find Least Common Multiple (LCM) via GCD
+func LCM(a, b int, integers ...int) int {
+	result := a * b / GCD(a, b)
+
+	for i := 0; i < len(integers); i++ {
+		result = LCM(result, integers[i])
+	}
+
+	return result
+}
+
+func parseInput(input []string) (string, []*Node) {
 	inNodeMap := map[string]*Node{}
 	for _, line := range input[2:] {
 		split := strings.Split(line, " = ")
@@ -48,24 +69,43 @@ func parseInput(input []string) (string, *Node) {
 			}
 		}
 	}
-	return input[0], inNodeMap["AAA"]
+
+	roots := make([]*Node, 0)
+	for k, v := range inNodeMap {
+		if strings.HasSuffix(k, "A") {
+			roots = append(roots, v)
+		}
+	}
+	return input[0], roots
 }
 
 func main() {
 	// Read in data set
-	flag.StringVar(&inputFlag, "input", "testinput", "input data set")
+	flag.StringVar(&inputFlag, "input", "input", "input data set")
 	flag.Parse()
 	inputs := common.ReadInput(inputFlag)
-	pattern, root := parseInput(inputs)
+	pattern, roots := parseInput(inputs)
 
-	currNode := root
+	currNodes := roots
 	count := 0
 	for {
 		found := false
 		for idx, v := range pattern {
 			count += 1
-			currNode = currNode.moveNext(v)
-			if currNode.nodeId == "ZZZ" && idx == len(pattern)-1 {
+			allZ := true
+			for idx, n := range currNodes {
+				newNode := n.moveNext(v)
+
+				if strings.HasSuffix(newNode.nodeId, "Z") {
+					fmt.Printf("roots %d hit Z after %d\n", idx, count)
+				}
+				if allZ && !strings.HasSuffix(newNode.nodeId, "Z") {
+					allZ = false
+				}
+				currNodes[idx] = newNode
+			}
+			// fmt.Printf("Curr %s %s\n", currNodes[0].nodeId, currNodes[1].nodeId)
+			if allZ && idx == len(pattern)-1 {
 				found = true
 			}
 		}
