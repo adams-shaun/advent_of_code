@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"regexp"
@@ -8,127 +9,123 @@ import (
 	"github.com/adams-shaun/advent_of_code/2023/common"
 )
 
+type Direction int
+
 var (
 	inputFlag string
 )
 
-func findStart(input []string) (int, int) {
+const (
+	up Direction = iota
+	left
+	down
+	right
+)
+
+func findStart(input []string) Point {
 	r, _ := regexp.Compile("S")
 
 	for idx, row := range input {
 		if res := r.FindStringIndex(row); res != nil {
-			return idx, res[0]
+			return Point{idx, res[0]}
 		} else {
 			continue
 		}
 	}
-	return 0, 0
+	return Point{0, 0}
 }
 
-type Path struct {
-	currX int
-	currY int
-	lastX int
-	lastY int
-	steps int
+type Point struct {
+	y int
+	x int
 }
 
-func (p *Path) intersects(p2 *Path) bool {
-	if p.currX == p2.currX && p.currY == p2.currY {
-		return true
-	}
-	return false
+type Transition struct {
+	lastDirection Direction
+	nextRune      rune
 }
 
-func (p *Path) goNext(input []string) {
-	tmpX, tmpY := p.currX, p.currY
-	if input[p.currY][p.currX] == '|' {
-		if p.lastY == p.currY-1 {
-			p.currY += 1
-		} else {
-			p.currY -= 1
-		}
-	} else if input[p.currY][p.currX] == '-' {
-		if p.lastX == p.currX-1 {
-			p.currX += 1
-		} else {
-			p.currX -= 1
-		}
-	} else if input[p.currY][p.currX] == '7' {
-		if p.lastY == p.currY {
-			p.currY += 1
-		} else {
-			p.currX -= 1
-		}
-	} else if input[p.currY][p.currX] == 'J' {
-		if p.lastY == p.currY {
-			p.currY -= 1
-		} else {
-			p.currX -= 1
-		}
-	} else if input[p.currY][p.currX] == 'L' {
-		if p.lastY == p.currY {
-			p.currY -= 1
-		} else {
-			p.currX += 1
-		}
-	} else if input[p.currY][p.currX] == 'F' {
-		if p.lastY == p.currY {
-			p.currY += 1
-		} else {
-			p.currX += 1
-		}
+func nextDirection(t Transition) Direction {
+	transMap := map[Transition]Direction{
+		{up, '|'}:    up,
+		{up, 'F'}:    right,
+		{up, '7'}:    left,
+		{down, '|'}:  down,
+		{down, 'L'}:  right,
+		{down, 'J'}:  left,
+		{left, '-'}:  left,
+		{left, 'L'}:  up,
+		{left, 'F'}:  down,
+		{right, '-'}: right,
+		{right, 'J'}: up,
+		{right, '7'}: down,
 	}
-	p.lastX, p.lastY = tmpX, tmpY
-
-	p.steps += 1
+	return transMap[t]
 }
 
-func startPaths(input []string, x, y int) []*Path {
-	paths := []*Path{}
-	maxY := len(input)
-	maxX := len(input[0])
-	if y < maxY && (input[y+1][x] == '|' || input[y+1][x] == 'J' || input[y+1][x] == 'L') {
-		paths = append(paths, &Path{x, y + 1, x, y, 1})
+func (p *Point) moveNext(inputs []string, d Direction) (Point, Direction, error) {
+	newP := *p
+	var newD Direction
+	switch d {
+	case up:
+		newP.y -= 1
+		if newP.y < 0 {
+			return newP, up, errors.New("oob")
+		}
+	case down:
+		newP.y += 1
+		if newP.y > len(inputs)-1 {
+			return newP, up, errors.New("oob")
+		}
+	case left:
+		newP.x -= 1
+		if newP.x < 0 {
+			return newP, up, errors.New("oob")
+		}
+	case right:
+		newP.x += 1
+		if newP.x > len(inputs[0])-1 {
+			return newP, up, errors.New("oob")
+		}
+	default:
+		return *p, d, errors.New("bad direction")
 	}
-	if y > 0 && (input[y-1][x] == '|' || input[y+1][x] == '7' || input[y+1][x] == 'F') {
-		paths = append(paths, &Path{x, y - 1, x, y, 1})
-	}
-	if x < maxX && (input[y][x+1] == '-' || input[y][x+1] == '7' || input[y][x+1] == 'J') {
-		paths = append(paths, &Path{x + 1, y, x, y, 1})
-	}
-	if x > 0 && (input[y][x-1] == '-' || input[y][x-1] == 'F' || input[y][x-1] == 'L') {
-		paths = append(paths, &Path{x - 1, y, x, y, 1})
-	}
-
-	return paths
+	t := Transition{d, rune(inputs[newP.y][newP.x])}
+	newD = nextDirection(t)
+	return newP, newD, nil
 }
 
-func findLoopCnt(input []string) int {
-	sY, sX := findStart(input)
-	paths := startPaths(input, sX, sY)
+func findLoopPath(input []string) []Point {
+	p0 := findStart(input)
 
-	fmt.Printf("P0: %+v, P1: %+v\n", paths[0], paths[1])
-
-	for {
-		paths[0].goNext(input)
-		paths[1].goNext(input)
-
-		fmt.Printf("P0: %+v, P1: %+v\n", paths[0], paths[1])
-
-		if paths[0].intersects(paths[1]) {
-			return paths[0].steps
+	for _, d := range []Direction{up, down, left, right} {
+		path := []Point{p0}
+		start, lastP := p0, p0
+		lastD := d
+		for {
+			nextP, nextD, err := lastP.moveNext(input, lastD)
+			if err != nil {
+				break
+			}
+			path = append(path, nextP)
+			if start == nextP {
+				return path
+			}
+			lastP = nextP
+			lastD = nextD
 		}
 	}
+	return []Point{}
 }
 
 func main() {
 	// Read in data set
-	flag.StringVar(&inputFlag, "input", "testinput", "input data set")
+	flag.StringVar(&inputFlag, "input", "input", "input data set")
 	flag.Parse()
 	inputs := common.ReadInput(inputFlag)
 
-	count := findLoopCnt(inputs)
+	path := findLoopPath(inputs)
+	// markup(inputs, &inputs2)
 
-	fmt.Printf("Result for infile %s : %d \n", inputFlag, count)
+	fmt.Printf("Result for infile %s : %d \n", inputFlag, len(path)/2)
 }
