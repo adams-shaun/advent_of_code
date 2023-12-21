@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"regexp"
 
 	"github.com/adams-shaun/advent_of_code/2023/common"
@@ -125,7 +126,19 @@ func main() {
 	inputs := common.ReadInput(inputFlag)
 
 	path := findLoopPath(inputs)
-	// markup(inputs, &inputs2)
 
-	fmt.Printf("Result for infile %s : %d \n", inputFlag, len(path)/2)
+	area := 0
+
+	// This one was difficult, some googling led to solution
+	// https://en.wikipedia.org/wiki/Shoelace_formula
+	last := len(path) - 1
+	for idx := range path[:last] {
+		area += (path[idx].y + path[idx+1].y) * (path[idx].x - path[idx+1].x)
+	}
+	// https://en.wikipedia.org/wiki/Pick%27s_theorem
+	area += (path[last].y + path[0].y) * (path[last].x - path[0].x)
+	area = int(math.Abs(float64(area / 2)))
+	i := area + 1 - len(path)/2
+
+	fmt.Printf("Result for infile %s : %d , %d\n", inputFlag, len(path)/2, i)
 }
